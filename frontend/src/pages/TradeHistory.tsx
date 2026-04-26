@@ -14,7 +14,7 @@ interface Perf {
   equity_curve: { ts: string; cumulative_pnl: number }[];
 }
 
-const f = (n: number|null, d = 2) => n != null ? n.toFixed(d) : "—";
+const f = (n: number|null|undefined, d = 2) => n != null ? n.toFixed(d) : "—";
 const APEX = {
   chart: { background: "transparent", toolbar: { show: false }, animations: { enabled: false } },
   theme: { mode: "dark" as const },
