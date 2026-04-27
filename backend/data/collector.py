@@ -36,7 +36,11 @@ def fetch_latest_bars(period: str = "1d") -> pd.DataFrame:
             "Open": "open", "High": "high", "Low": "low",
             "Close": "close", "Volume": "volume"
         }, inplace=True)
-        return df[["open", "high", "low", "close", "volume"]]
+        df = df[["open", "high", "low", "close", "volume"]]
+        # Drop the last bar if volume=0 — it's still forming and would make vol_ratio=0
+        if len(df) > 1 and df["volume"].iloc[-1] == 0:
+            df = df.iloc[:-1]
+        return df
     except Exception as exc:
         logger.error("fetch_latest_bars failed: %s", exc)
         return pd.DataFrame()
