@@ -40,11 +40,13 @@ def validate_buy(
     if capital <= 0:
         return RiskDecision(False, "no capital available")
 
+    slippage_pct = float(params.get("slippage_pct", 0.05)) / 100
     risk_amount = capital * max_risk_pct
     shares = risk_amount / (price * stop_loss_pct)
 
-    if shares * price > capital:
-        shares = capital / price
+    # Cap so that total cost (price × shares + slippage) never exceeds capital
+    if shares * price * (1 + slippage_pct) > capital:
+        shares = capital / (price * (1 + slippage_pct))
 
     if shares <= 0:
         return RiskDecision(False, "computed shares <= 0")
