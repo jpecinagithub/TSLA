@@ -31,7 +31,9 @@ def fetch_latest_bars(period: str = "1d") -> pd.DataFrame:
             logger.warning("yfinance returned empty DataFrame")
             return df
         df.index = pd.to_datetime(df.index)
-        df.index = df.index.map(_to_utc)
+        # Convert tz-aware index to naive UTC (map() re-applies tz, use tz_convert instead)
+        if df.index.tzinfo is not None:
+            df.index = df.index.tz_convert("UTC").tz_localize(None)
         df.rename(columns={
             "Open": "open", "High": "high", "Low": "low",
             "Close": "close", "Volume": "volume"
