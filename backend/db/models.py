@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import (
-    BigInteger, Column, DateTime, Enum, Integer,
-    Numeric, SmallInteger, String
+    BigInteger, Column, Date, DateTime, Enum, Integer,
+    Numeric, SmallInteger, String, Text
 )
 from db.connection import Base
 
@@ -75,8 +75,42 @@ class Parameter(Base):
 
 class ParamAudit(Base):
     __tablename__ = "param_audit"
-    id        = Column(BigInteger, primary_key=True, autoincrement=True)
-    ts        = Column(DateTime(3), nullable=False, default=datetime.utcnow)
-    key_name  = Column(String(64), nullable=False)
-    old_value = Column(String(255))
-    new_value = Column(String(255), nullable=False)
+    id         = Column(BigInteger, primary_key=True, autoincrement=True)
+    ts         = Column(DateTime(3), nullable=False, default=datetime.utcnow)
+    key_name   = Column(String(64), nullable=False)
+    old_value  = Column(String(255))
+    new_value  = Column(String(255), nullable=False)
+    changed_by = Column(String(64), nullable=False, default="manual")
+
+
+class DailyReport(Base):
+    __tablename__ = "daily_reports"
+    id                   = Column(BigInteger, primary_key=True, autoincrement=True)
+    report_date          = Column(Date, nullable=False, unique=True)
+    generated_at         = Column(DateTime(3), nullable=False)
+    total_signals        = Column(Integer, nullable=False, default=0)
+    buy_signals          = Column(Integer, nullable=False, default=0)
+    sell_signals         = Column(Integer, nullable=False, default=0)
+    trades_opened        = Column(Integer, nullable=False, default=0)
+    trades_closed        = Column(Integer, nullable=False, default=0)
+    daily_pnl            = Column(Numeric(10, 4), nullable=False, default=0)
+    win_count            = Column(Integer, nullable=False, default=0)
+    loss_count           = Column(Integer, nullable=False, default=0)
+    win_rate             = Column(Numeric(5, 2), nullable=False, default=0)
+    analysis_json        = Column(Text)
+    recommendations_json = Column(Text)
+    param_snapshot_json  = Column(Text)
+
+
+class OptimizationRun(Base):
+    __tablename__ = "optimization_runs"
+    id                  = Column(BigInteger, primary_key=True, autoincrement=True)
+    run_ts              = Column(DateTime(3), nullable=False)
+    bars_used           = Column(Integer, nullable=False, default=0)
+    combinations_tested = Column(Integer, nullable=False, default=0)
+    best_params_json    = Column(Text, nullable=False)
+    baseline_pnl        = Column(Numeric(10, 4))
+    best_pnl            = Column(Numeric(10, 4))
+    improvement_pct     = Column(Numeric(6, 2))
+    applied             = Column(SmallInteger, nullable=False, default=0)
+    apply_reason        = Column(Text)

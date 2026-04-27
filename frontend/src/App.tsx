@@ -1,5 +1,5 @@
 import { BrowserRouter, NavLink, Route, Routes } from "react-router-dom";
-import { Activity, BarChart2, ClipboardList, Settings, TrendingUp, Zap } from "lucide-react";
+import { Activity, BarChart2, BookOpen, ClipboardList, Settings, Sliders, TrendingUp, Zap } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./lib/api";
 import { useLive } from "./lib/useLive";
@@ -8,6 +8,8 @@ import DecisionLog  from "./pages/DecisionLog";
 import TradeHistory from "./pages/TradeHistory";
 import Parameters   from "./pages/Parameters";
 import Performance  from "./pages/Performance";
+import DailyReports from "./pages/DailyReports";
+import Optimizer    from "./pages/Optimizer";
 
 interface Portfolio { capital: number; daily_pnl: number; pnl_pct: number; }
 
@@ -17,6 +19,8 @@ const NAV = [
   { to: "/trades",      label: "Trades",      Icon: BarChart2     },
   { to: "/parameters",  label: "Parameters",  Icon: Settings      },
   { to: "/performance", label: "Performance", Icon: TrendingUp    },
+  { to: "/reports",     label: "Reports",     Icon: BookOpen      },
+  { to: "/optimizer",   label: "Optimizer",   Icon: Sliders       },
 ];
 
 function f(n?: number | null, d = 2) { return n != null ? n.toFixed(d) : "—"; }
@@ -94,6 +98,8 @@ export default function App() {
             <Route path="/trades"      element={<TradeHistory />} />
             <Route path="/parameters"  element={<Parameters />} />
             <Route path="/performance" element={<Performance />} />
+            <Route path="/reports"     element={<DailyReports />} />
+            <Route path="/optimizer"   element={<Optimizer />} />
           </Routes>
         </main>
 

@@ -183,3 +183,38 @@ def reset_daily_counters() -> None:
     finally:
         db.close()
     logger.info("Daily counters reset")
+
+
+def run_daily_analysis_job() -> None:
+    """Called at 16:05 ET — generates the end-of-day analysis report."""
+    logger.info("Running end-of-day analysis...")
+    try:
+        from analysis.daily_analyzer import run_daily_analysis
+        report = run_daily_analysis()
+        n_errors = len(report.get("errors", []))
+        n_missed = len(report.get("missed_opportunities", []))
+        logger.info(
+            "Daily analysis done: PnL=%.2f | errors=%d | missed=%d",
+            report.get("pnl", {}).get("daily_pnl", 0), n_errors, n_missed,
+        )
+    except Exception as exc:
+        logger.error("Daily analysis job failed: %s", exc, exc_info=True)
+
+
+def run_optimizer_job() -> None:
+    """Called at 16:10 ET — runs parameter grid search and auto-applies if improved."""
+    logger.info("Running parameter optimizer...")
+    try:
+        from optimizer.param_optimizer import run_optimization
+        result = run_optimization(auto_apply=True)
+        if result.get("status") == "completed":
+            logger.info(
+                "Optimizer done: %d combos | improvement=%.1f%% | applied=%s",
+                result.get("combinations_tested", 0),
+                result.get("improvement_pct", 0),
+                result.get("applied", False),
+            )
+        else:
+            logger.info("Optimizer skipped/errored: %s", result.get("reason", "unknown"))
+    except Exception as exc:
+        logger.error("Optimizer job failed: %s", exc, exc_info=True)
