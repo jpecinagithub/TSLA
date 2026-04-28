@@ -67,9 +67,9 @@ class BacktestResult:
     strategy:      str
     params:        dict
     trades:        list[BacktestTrade]
-    equity_curve:  list[dict]          # [{ts, capital, pnl}]
+    equity_curve:  list[dict]          # [{ts, capital}]
 
-    # Performance metrics (computed by _compute_metrics)
+    # ── Core metrics (computed by _compute_metrics) ───────────────────────
     total_trades:   int   = 0
     winning_trades: int   = 0
     losing_trades:  int   = 0
@@ -84,24 +84,72 @@ class BacktestResult:
     initial_capital: float = 5_000.0
     final_capital:   float = 5_000.0
 
+    # ── Extended metrics ──────────────────────────────────────────────────
+    expectancy:          float = 0.0   # avg $ expected per trade
+    recovery_factor:     float | None = None   # total_pnl / max_drawdown
+    avg_trades_per_day:  float = 0.0
+    avg_hold_minutes:    float = 0.0   # avg time in position
+    best_trade:          float = 0.0
+    worst_trade:         float = 0.0
+    total_slippage:      float = 0.0
+    max_consec_losses:   int   = 0     # worst losing streak
+    exit_reasons:        dict  = field(default_factory=dict)  # {reason: count}
+    monthly_pnl:         dict  = field(default_factory=dict)  # {"YYYY-MM": pnl}
+
     def print_summary(self) -> None:
-        sep = "=" * 55
-        pf  = f"{self.profit_factor:.2f}" if self.profit_factor is not None else "N/A"
-        sr  = f"{self.sharpe_ratio:.2f}"  if self.sharpe_ratio  is not None else "N/A"
+        sep = "=" * 60
+        pf  = f"{self.profit_factor:.2f}"   if self.profit_factor  is not None else "N/A"
+        sr  = f"{self.sharpe_ratio:.2f}"    if self.sharpe_ratio   is not None else "N/A"
+        rf  = f"{self.recovery_factor:.2f}" if self.recovery_factor is not None else "N/A"
+
         print(f"\n{sep}")
         print(f"  Backtest: {self.strategy.upper()}")
         print(sep)
-        print(f"  Total trades:    {self.total_trades}")
-        print(f"  Win rate:        {self.win_rate:.1f}%  "
+
+        # ── Volume & frequency
+        print(f"  Total trades:       {self.total_trades}  "
+              f"({self.avg_trades_per_day:.2f}/day)")
+        print(f"  Win rate:           {self.win_rate:.1f}%  "
               f"({self.winning_trades}W / {self.losing_trades}L)")
-        print(f"  Profit factor:   {pf}")
-        print(f"  Avg win:         ${self.avg_win:.2f}")
-        print(f"  Avg loss:        ${self.avg_loss:.2f}")
-        print(f"  Total PnL:       ${self.total_pnl:+.2f}")
-        print(f"  Max drawdown:    ${self.max_drawdown:.2f} ({self.max_drawdown_pct:.1f}%)")
-        print(f"  Sharpe ratio:    {sr}")
-        print(f"  Final capital:   ${self.final_capital:.2f}  "
+        print(f"  Max consec. losses: {self.max_consec_losses}")
+
+        # ── PnL
+        print(f"  Total PnL:          ${self.total_pnl:+.2f}")
+        print(f"  Expectancy/trade:   ${self.expectancy:+.2f}")
+        print(f"  Avg win:            ${self.avg_win:+.2f}  |  "
+              f"Avg loss: ${self.avg_loss:.2f}")
+        print(f"  Best trade:         ${self.best_trade:+.2f}  |  "
+              f"Worst: ${self.worst_trade:.2f}")
+        print(f"  Total slippage:     ${self.total_slippage:.2f}")
+
+        # ── Risk
+        print(f"  Profit factor:      {pf}")
+        print(f"  Max drawdown:       ${self.max_drawdown:.2f} "
+              f"({self.max_drawdown_pct:.1f}%)")
+        print(f"  Recovery factor:    {rf}")
+        print(f"  Sharpe ratio:       {sr}")
+
+        # ── Timing
+        print(f"  Avg hold time:      {self.avg_hold_minutes:.0f} min")
+        print(f"  Final capital:      ${self.final_capital:.2f}  "
               f"(start: ${self.initial_capital:.2f})")
+
+        # ── Exit reasons
+        if self.exit_reasons:
+            reasons = "  |  ".join(f"{k}: {v}" for k, v in
+                                   sorted(self.exit_reasons.items(),
+                                          key=lambda x: -x[1]))
+            print(f"  Exit reasons:       {reasons}")
+
+        # ── Monthly PnL
+        if self.monthly_pnl:
+            print(f"  Monthly PnL:")
+            for month, pnl in sorted(self.monthly_pnl.items()):
+                bar   = "█" * min(int(abs(pnl) / 5), 20)
+                sign  = "+" if pnl >= 0 else "-"
+                color = "▲" if pnl >= 0 else "▼"
+                print(f"    {month}  {color} ${pnl:+7.2f}  {bar}")
+
         print(sep + "\n")
 
 
@@ -351,34 +399,87 @@ def _compute_metrics(r: BacktestResult, initial_capital: float) -> None:
     wins = [p for p in pnls if p > 0]
     loss = [p for p in pnls if p <= 0]
 
+    # ── Core
     r.winning_trades = len(wins)
     r.losing_trades  = len(loss)
     r.win_rate       = 100 * r.winning_trades / r.total_trades
     r.avg_win        = float(np.mean(wins))  if wins else 0.0
     r.avg_loss       = float(np.mean(loss))  if loss else 0.0
-    r.total_pnl      = sum(pnls)
+    r.total_pnl      = round(sum(pnls), 4)
+    r.best_trade     = round(max(pnls), 4)
+    r.worst_trade    = round(min(pnls), 4)
+    r.total_slippage = round(sum(t.slippage for t in r.trades), 4)
 
     gross_win  = sum(wins)
     gross_loss = abs(sum(loss))
-    r.profit_factor = (gross_win / gross_loss) if gross_loss > 0 else None
+    r.profit_factor = round(gross_win / gross_loss, 4) if gross_loss > 0 else None
 
-    # Max drawdown from equity curve
+    # ── Expectancy: expected $ per trade
+    wr = r.win_rate / 100
+    r.expectancy = round(wr * r.avg_win + (1 - wr) * r.avg_loss, 4)
+
+    # ── Max drawdown from equity curve (equity = cash + open position value)
     if r.equity_curve:
-        caps    = [e["capital"] for e in r.equity_curve]
-        peak    = initial_capital
-        max_dd  = 0.0
+        caps   = [e["capital"] for e in r.equity_curve]
+        peak   = initial_capital
+        max_dd = 0.0
         for c in caps:
             peak   = max(peak, c)
             max_dd = max(max_dd, peak - c)
         r.max_drawdown     = round(max_dd, 4)
         r.max_drawdown_pct = round(100 * max_dd / initial_capital, 2) if initial_capital > 0 else 0.0
 
-    # Annualised Sharpe (daily PnL, 252 trading days/year)
+    # ── Recovery factor: how much PnL per $ of drawdown
+    if r.max_drawdown > 0:
+        r.recovery_factor = round(r.total_pnl / r.max_drawdown, 2)
+
+    # ── Annualised Sharpe — per-trade returns normalised to yearly
     if len(pnls) >= 2:
         arr = np.array(pnls)
         mu  = arr.mean()
         sd  = arr.std(ddof=1)
         if sd > 0:
-            # Scale to daily: assume ~4 trades per day on average
-            daily_factor  = math.sqrt(252)
-            r.sharpe_ratio = round(float((mu / sd) * daily_factor), 2)
+            # Annualise: assume 252 trading days, avg trades/day scale
+            trading_days = max(1, len({str(t.entry_ts)[:10] for t in r.trades}))
+            trades_per_year = r.total_trades * (252 / trading_days)
+            r.sharpe_ratio = round(float((mu / sd) * math.sqrt(trades_per_year)), 2)
+
+    # ── Avg trades per day
+    if r.trades:
+        all_dates = {str(t.entry_ts)[:10] for t in r.trades}
+        r.avg_trades_per_day = round(r.total_trades / len(all_dates), 2)
+
+    # ── Avg holding time in minutes
+    hold_minutes = []
+    for t in r.trades:
+        try:
+            delta = pd.Timestamp(t.exit_ts) - pd.Timestamp(t.entry_ts)
+            hold_minutes.append(delta.total_seconds() / 60)
+        except Exception:
+            pass
+    r.avg_hold_minutes = round(float(np.mean(hold_minutes)), 1) if hold_minutes else 0.0
+
+    # ── Max consecutive losses
+    max_streak = streak = 0
+    for p in pnls:
+        if p <= 0:
+            streak += 1
+            max_streak = max(max_streak, streak)
+        else:
+            streak = 0
+    r.max_consec_losses = max_streak
+
+    # ── Exit reason breakdown
+    from collections import Counter
+    r.exit_reasons = dict(Counter(t.exit_reason for t in r.trades))
+
+    # ── Monthly PnL breakdown (ET month of entry)
+    monthly: dict[str, float] = {}
+    for t in r.trades:
+        try:
+            et_ts = pd.Timestamp(t.entry_ts).tz_localize("UTC").tz_convert(ET)
+            key   = et_ts.strftime("%Y-%m")
+        except Exception:
+            key   = str(t.entry_ts)[:7]
+        monthly[key] = round(monthly.get(key, 0.0) + t.net_pnl, 4)
+    r.monthly_pnl = monthly

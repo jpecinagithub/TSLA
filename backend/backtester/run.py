@@ -108,21 +108,23 @@ def main():
 
 
 def _print_comparison(results, initial_capital):
-    sep = "=" * 75
+    sep = "=" * 90
     print(f"\n{sep}")
     print(f"  STRATEGY COMPARISON  (capital: ${initial_capital:,.0f})")
     print(sep)
-    header = f"  {'Strategy':<22} {'Trades':>6} {'Win%':>6} {'PF':>6} {'PnL':>9} {'MaxDD':>8} {'Sharpe':>7}"
+    header = (f"  {'Strategy':<22} {'Trades':>6} {'Win%':>6} {'PF':>6} "
+              f"{'Expect':>8} {'PnL':>9} {'MaxDD':>8} {'Hold':>6} {'Sharpe':>7}")
     print(header)
-    print("-" * 75)
+    print("-" * 90)
     for label, r in results:
-        pf = f"{r.profit_factor:.2f}" if r.profit_factor else "  N/A"
-        sr = f"{r.sharpe_ratio:.2f}"  if r.sharpe_ratio  else "  N/A"
-        pnl_sign = "+" if r.total_pnl >= 0 else ""
+        pf  = f"{r.profit_factor:.2f}" if r.profit_factor is not None else "  N/A"
+        sr  = f"{r.sharpe_ratio:.2f}"  if r.sharpe_ratio  is not None else "  N/A"
+        exp = f"${r.expectancy:+.2f}"
+        pnl = f"{'+'if r.total_pnl>=0 else ''}${r.total_pnl:.2f}"
         print(
             f"  {label:<22} {r.total_trades:>6} {r.win_rate:>5.1f}% "
-            f"{pf:>6} {pnl_sign}${r.total_pnl:>7.2f} "
-            f"${r.max_drawdown:>6.2f} {sr:>7}"
+            f"{pf:>6} {exp:>8} {pnl:>9} "
+            f"${r.max_drawdown:>6.2f} {r.avg_hold_minutes:>4.0f}m {sr:>7}"
         )
     print(sep + "\n")
 
