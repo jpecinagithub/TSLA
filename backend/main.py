@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import LOG_LEVEL
 from db.connection import check_connection
 from api.routes import trades, signals, portfolio, parameters, performance, bars, reports, optimizer as optimizer_routes
+from api.routes.live_decisions import router as live_decisions_router
 from api.websocket import router as ws_router
 from scheduler.loop import tick, reset_daily_counters, run_daily_analysis_job, run_optimizer_job
 
@@ -63,6 +64,7 @@ app.include_router(parameters.router)
 app.include_router(performance.router)
 app.include_router(reports.router)
 app.include_router(optimizer_routes.router)
+app.include_router(live_decisions_router)
 app.include_router(ws_router)
 
 
