@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from db.connection import get_db
@@ -13,8 +13,11 @@ class ParamUpdate(BaseModel):
 
 
 @router.get("")
-def list_params(db: Session = Depends(get_db)):
-    rows = db.query(Parameter).all()
+def list_params(
+    strategy: str = Query(default="ema_crossover"),
+    db: Session = Depends(get_db),
+):
+    rows = db.query(Parameter).filter(Parameter.strategy == strategy).all()
     return [
         {"key": r.key_name, "value": r.value, "description": r.description, "updated_at": r.updated_at}
         for r in rows
@@ -22,12 +25,18 @@ def list_params(db: Session = Depends(get_db)):
 
 
 @router.put("/{key_name}")
-def update_param(key_name: str, body: ParamUpdate, db: Session = Depends(get_db)):
-    param = db.get(Parameter, key_name)
+def update_param(
+    key_name: str,
+    body: ParamUpdate,
+    strategy: str = Query(default="ema_crossover"),
+    db: Session = Depends(get_db),
+):
+    param = db.get(Parameter, {"strategy": strategy, "key_name": key_name})
     if not param:
-        raise HTTPException(404, f"Parameter '{key_name}' not found")
+        raise HTTPException(404, f"Parameter '{key_name}' not found for strategy '{strategy}'")
 
     audit = ParamAudit(
+        strategy  = strategy,
         key_name  = key_name,
         old_value = param.value,
         new_value = body.value,

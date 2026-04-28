@@ -39,10 +39,10 @@ def _should_flatten() -> bool:
     return now_et >= flatten_t
 
 
-def _load_params() -> dict:
+def _load_params(strategy: str = "ema_crossover") -> dict:
     db = SessionLocal()
     try:
-        rows = db.query(Parameter).all()
+        rows = db.query(Parameter).filter(Parameter.strategy == strategy).all()
         return {r.key_name: r.value for r in rows}
     finally:
         db.close()

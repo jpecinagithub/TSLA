@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from db.connection import get_db
@@ -8,11 +8,16 @@ router = APIRouter(prefix="/api/trades", tags=["trades"])
 
 
 @router.get("")
-def list_trades(limit: int = 100, db: Session = Depends(get_db)):
-    rows = db.query(Trade).order_by(desc(Trade.entry_ts)).limit(limit).all()
+def list_trades(
+    limit: int = 100,
+    strategy: str = Query(default="ema_crossover"),
+    db: Session = Depends(get_db),
+):
+    rows = db.query(Trade).filter(Trade.strategy == strategy).order_by(desc(Trade.entry_ts)).limit(limit).all()
     return [
         {
             "id":          r.id,
+            "strategy":    r.strategy,
             "entry_ts":    r.entry_ts,
             "exit_ts":     r.exit_ts,
             "entry_price": float(r.entry_price),

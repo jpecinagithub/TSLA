@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from db.connection import get_db
@@ -8,11 +8,16 @@ router = APIRouter(prefix="/api/signals", tags=["signals"])
 
 
 @router.get("")
-def list_signals(limit: int = 200, db: Session = Depends(get_db)):
-    rows = db.query(Signal).order_by(desc(Signal.ts)).limit(limit).all()
+def list_signals(
+    limit: int = 200,
+    strategy: str = Query(default="ema_crossover"),
+    db: Session = Depends(get_db),
+):
+    rows = db.query(Signal).filter(Signal.strategy == strategy).order_by(desc(Signal.ts)).limit(limit).all()
     return [
         {
             "id":           r.id,
+            "strategy":     r.strategy,
             "ts":           r.ts,
             "signal_type":  r.signal_type,
             "price":        float(r.price),
