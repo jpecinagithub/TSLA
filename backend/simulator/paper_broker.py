@@ -40,14 +40,18 @@ def open_position(
         if portfolio is None:
             logger.error("No portfolio row found for strategy '%s'", strategy)
             return {}
-        if portfolio.capital < total_cost:
+
+        # SQLAlchemy returns DECIMAL columns as decimal.Decimal, not float.
+        # All arithmetic must use float to avoid "unsupported operand type" errors.
+        capital = float(portfolio.capital)
+        if capital < total_cost:
             logger.warning(
-                "[%s] Insufficient capital: need %.2f, have %.2f",
-                strategy, total_cost, portfolio.capital,
+                "[%s] Insufficient capital: need %.4f, have %.4f",
+                strategy, total_cost, capital,
             )
             return {}
 
-        portfolio.capital -= total_cost
+        portfolio.capital = capital - total_cost
         portfolio.last_updated = datetime.now(timezone.utc).replace(tzinfo=None)
 
         trade = Trade(
@@ -107,9 +111,10 @@ def close_position(
             logger.error("No portfolio row found for strategy '%s'", strategy)
             return {}
 
-        portfolio.capital      += proceeds
-        portfolio.realized_pnl += net_pnl
-        portfolio.daily_pnl    += net_pnl
+        # Cast to float — SQLAlchemy returns DECIMAL columns as decimal.Decimal
+        portfolio.capital      = float(portfolio.capital)      + proceeds
+        portfolio.realized_pnl = float(portfolio.realized_pnl) + net_pnl
+        portfolio.daily_pnl    = float(portfolio.daily_pnl)    + net_pnl
         portfolio.last_updated  = datetime.now(timezone.utc).replace(tzinfo=None)
 
         trade = db.get(Trade, position["trade_id"])
