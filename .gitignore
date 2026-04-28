@@ -11,3 +11,4 @@ frontend/dist/
 frontend/.angular/
 *.log
 .DS_Store
+backend/data/historical/*.csv
