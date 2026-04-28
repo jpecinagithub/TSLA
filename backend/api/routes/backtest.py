@@ -20,7 +20,7 @@ from backtester.engine   import BacktestEngine
 from data.historical     import load_latest
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(prefix="/api/backtest", tags=["backtest"])
 
 # ── In-memory cache ───────────────────────────────────────────────────────────
 _cache: dict | None = None
@@ -112,7 +112,7 @@ def _run_backtest() -> dict:
     }
 
 
-@router.get("/backtest/results")
+@router.get("/results")
 def get_results():
     global _cache, _cache_ts
     if _cache is None or (time.time() - _cache_ts) > CACHE_TTL:
@@ -122,7 +122,7 @@ def get_results():
     return _cache
 
 
-@router.post("/backtest/run")
+@router.post("/run")
 def run_now():
     global _cache, _cache_ts
     logger.info("Forced backtest run requested")
