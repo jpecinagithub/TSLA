@@ -28,7 +28,11 @@ def open_position(
     slippage_pct  = float(params.get("slippage_pct", 0.05))
     fill_price    = price
     slippage_cost = _slippage_cost(fill_price, shares, slippage_pct)
-    total_cost    = fill_price * shares + slippage_cost
+    # Round to 4 decimal places to match MySQL DECIMAL(12,4) precision.
+    # Without this, floating-point arithmetic can produce a total_cost
+    # fractionally above capital (e.g. $5000.0001 vs $5000.0000) even
+    # when the risk manager calculated shares to fit exactly within capital.
+    total_cost    = round(fill_price * shares + slippage_cost, 4)
 
     db = SessionLocal()
     try:
