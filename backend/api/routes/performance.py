@@ -1,6 +1,5 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from db.connection import get_db
 from db.models import Trade, Portfolio
 
@@ -8,8 +7,13 @@ router = APIRouter(prefix="/api/performance", tags=["performance"])
 
 
 @router.get("")
-def get_performance(db: Session = Depends(get_db)):
-    closed = db.query(Trade).filter(Trade.status == "CLOSED").all()
+def get_performance(
+    strategy: str = Query(default="ema_crossover"),
+    db: Session = Depends(get_db),
+):
+    closed = db.query(Trade).filter(
+        Trade.status == "CLOSED", Trade.strategy == strategy
+    ).all()
     if not closed:
         return {"message": "No closed trades yet"}
 
@@ -18,8 +22,6 @@ def get_performance(db: Session = Depends(get_db)):
     losses     = [p for p in net_pnls if p <= 0]
     gross_wins = sum(wins)
     gross_loss = abs(sum(losses))
-
-    portfolio  = db.get(Portfolio, 1)
 
     # Equity curve: cumulative PnL per trade sorted by exit time
     equity = []

@@ -4,14 +4,16 @@ import { useQuery } from "@tanstack/react-query";
 import { Search, RefreshCw } from "lucide-react";
 import Badge from "../components/Badge";
 import { api } from "../lib/api";
+import { useStrategy } from "../lib/StrategyContext";
 const f = (n, d = 2) => n != null ? n.toFixed(d) : "—";
 const FILTERS = ["ALL", "BUY", "SELL", "HOLD"];
 export default function DecisionLog() {
+    const { strategy } = useStrategy();
     const [typeFilter, setTypeFilter] = useState("ALL");
     const [search, setSearch] = useState("");
     const { data: signals = [], isLoading, refetch, isFetching } = useQuery({
-        queryKey: ["signals"],
-        queryFn: () => api.get("/signals?limit=500"),
+        queryKey: ["signals", strategy],
+        queryFn: () => api.get(`/signals?limit=500&strategy=${strategy}`),
         refetchInterval: 30000,
     });
     const rows = signals.filter(s => (typeFilter === "ALL" || s.signal_type === typeFilter) &&

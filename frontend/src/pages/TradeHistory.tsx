@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import ReactApexChart from "react-apexcharts";
 import Badge from "../components/Badge";
 import { api } from "../lib/api";
+import { useStrategy } from "../lib/StrategyContext";
 
 interface Trade {
   id: number; entry_ts: string; exit_ts: string|null;
@@ -23,14 +24,16 @@ const APEX = {
 };
 
 export default function TradeHistory() {
+  const { strategy } = useStrategy();
+
   const { data: trades = [] } = useQuery<Trade[]>({
-    queryKey: ["trades"],
-    queryFn:  () => api.get("/trades?limit=200"),
+    queryKey: ["trades", strategy],
+    queryFn:  () => api.get(`/trades?limit=200&strategy=${strategy}`),
     refetchInterval: 30_000,
   });
   const { data: perf } = useQuery<Perf>({
-    queryKey: ["performance"],
-    queryFn:  () => api.get("/performance"),
+    queryKey: ["performance", strategy],
+    queryFn:  () => api.get(`/performance?strategy=${strategy}`),
     refetchInterval: 30_000,
   });
 

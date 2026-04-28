@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Search, RefreshCw } from "lucide-react";
 import Badge from "../components/Badge";
 import { api } from "../lib/api";
+import { useStrategy } from "../lib/StrategyContext";
 
 interface Signal {
   id: number; ts: string; signal_type: string; price: number;
@@ -15,12 +16,13 @@ const f = (n: number|null, d = 2) => n != null ? n.toFixed(d) : "—";
 const FILTERS = ["ALL", "BUY", "SELL", "HOLD"] as const;
 
 export default function DecisionLog() {
+  const { strategy }                = useStrategy();
   const [typeFilter, setTypeFilter] = useState("ALL");
   const [search, setSearch]         = useState("");
 
   const { data: signals = [], isLoading, refetch, isFetching } = useQuery<Signal[]>({
-    queryKey: ["signals"],
-    queryFn:  () => api.get("/signals?limit=500"),
+    queryKey: ["signals", strategy],
+    queryFn:  () => api.get(`/signals?limit=500&strategy=${strategy}`),
     refetchInterval: 30_000,
   });
 

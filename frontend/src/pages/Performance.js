@@ -2,6 +2,7 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useQuery } from "@tanstack/react-query";
 import ReactApexChart from "react-apexcharts";
 import { api } from "../lib/api";
+import { useStrategy } from "../lib/StrategyContext";
 const f = (n, d = 2) => n != null ? n.toFixed(d) : "—";
 const APEX = {
     chart: { background: "transparent", toolbar: { show: false }, animations: { enabled: false } },
@@ -10,14 +11,15 @@ const APEX = {
     tooltip: { theme: "dark" },
 };
 export default function Performance() {
+    const { strategy } = useStrategy();
     const { data: perf } = useQuery({
-        queryKey: ["performance"],
-        queryFn: () => api.get("/performance"),
+        queryKey: ["performance", strategy],
+        queryFn: () => api.get(`/performance?strategy=${strategy}`),
         refetchInterval: 60000,
     });
     const { data: trades = [] } = useQuery({
-        queryKey: ["trades"],
-        queryFn: () => api.get("/trades?limit=500"),
+        queryKey: ["trades", strategy],
+        queryFn: () => api.get(`/trades?limit=500&strategy=${strategy}`),
     });
     const totalUp = (perf?.total_pnl ?? 0) >= 0;
     const equity = (perf?.equity_curve ?? []).map(p => ({ x: new Date(p.ts).getTime(), y: p.cumulative_pnl }));

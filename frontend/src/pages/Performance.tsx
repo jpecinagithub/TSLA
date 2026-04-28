@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import ReactApexChart from "react-apexcharts";
 import { api } from "../lib/api";
+import { useStrategy } from "../lib/StrategyContext";
 
 interface Perf {
   total_trades: number; win_rate: number; profit_factor: number|null;
@@ -18,14 +19,16 @@ const APEX = {
 };
 
 export default function Performance() {
+  const { strategy } = useStrategy();
+
   const { data: perf } = useQuery<Perf>({
-    queryKey: ["performance"],
-    queryFn:  () => api.get("/performance"),
+    queryKey: ["performance", strategy],
+    queryFn:  () => api.get(`/performance?strategy=${strategy}`),
     refetchInterval: 60_000,
   });
   const { data: trades = [] } = useQuery<Trade[]>({
-    queryKey: ["trades"],
-    queryFn:  () => api.get("/trades?limit=500"),
+    queryKey: ["trades", strategy],
+    queryFn:  () => api.get(`/trades?limit=500&strategy=${strategy}`),
   });
 
   const totalUp = (perf?.total_pnl ?? 0) >= 0;

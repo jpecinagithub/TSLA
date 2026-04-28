@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import ReactApexChart from "react-apexcharts";
 import Badge from "../components/Badge";
 import { api } from "../lib/api";
+import { useStrategy } from "../lib/StrategyContext";
 const f = (n, d = 2) => n != null ? n.toFixed(d) : "—";
 const APEX = {
     chart: { background: "transparent", toolbar: { show: false }, animations: { enabled: false } },
@@ -11,14 +12,15 @@ const APEX = {
     tooltip: { theme: "dark" },
 };
 export default function TradeHistory() {
+    const { strategy } = useStrategy();
     const { data: trades = [] } = useQuery({
-        queryKey: ["trades"],
-        queryFn: () => api.get("/trades?limit=200"),
+        queryKey: ["trades", strategy],
+        queryFn: () => api.get(`/trades?limit=200&strategy=${strategy}`),
         refetchInterval: 30000,
     });
     const { data: perf } = useQuery({
-        queryKey: ["performance"],
-        queryFn: () => api.get("/performance"),
+        queryKey: ["performance", strategy],
+        queryFn: () => api.get(`/performance?strategy=${strategy}`),
         refetchInterval: 30000,
     });
     const totalUp = (perf?.total_pnl ?? 0) >= 0;
