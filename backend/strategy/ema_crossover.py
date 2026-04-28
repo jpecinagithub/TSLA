@@ -31,6 +31,7 @@ def evaluate(
     prev_snap: IndicatorSnapshot | None,
     open_position: dict | None,
     params: dict,
+    df=None,          # unused — kept for uniform interface with other strategies
 ) -> StrategyResult:
     """
     Returns a StrategyResult.

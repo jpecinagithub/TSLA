@@ -19,27 +19,35 @@ def open_position(
     price: float,
     shares: float,
     params: dict,
+    strategy: str = "ema_crossover",
 ) -> dict:
     """
-    Simulate a BUY fill. Deducts cost + slippage from capital.
-    Returns the position dict persisted to DB.
+    Simulate a BUY fill. Deducts cost + slippage from the strategy's capital.
+    Returns the position dict persisted to DB, or {} on failure.
     """
     slippage_pct  = float(params.get("slippage_pct", 0.05))
-    fill_price    = price  # market order: fill at current price
+    fill_price    = price
     slippage_cost = _slippage_cost(fill_price, shares, slippage_pct)
     total_cost    = fill_price * shares + slippage_cost
 
     db = SessionLocal()
     try:
-        portfolio = db.get(Portfolio, 1)
+        portfolio = db.query(Portfolio).filter(Portfolio.strategy == strategy).first()
+        if portfolio is None:
+            logger.error("No portfolio row found for strategy '%s'", strategy)
+            return {}
         if portfolio.capital < total_cost:
-            logger.warning("Insufficient capital: need %.2f, have %.2f", total_cost, portfolio.capital)
+            logger.warning(
+                "[%s] Insufficient capital: need %.2f, have %.2f",
+                strategy, total_cost, portfolio.capital,
+            )
             return {}
 
         portfolio.capital -= total_cost
         portfolio.last_updated = datetime.now(timezone.utc).replace(tzinfo=None)
 
         trade = Trade(
+            strategy    = strategy,
             entry_ts    = datetime.now(timezone.utc).replace(tzinfo=None),
             entry_price = fill_price,
             shares      = shares,
@@ -56,12 +64,12 @@ def open_position(
             "shares":      float(shares),
             "slippage":    slippage_cost,
         }
-        logger.info("BUY %.4f shares @ %.4f  (slippage: %.4f)", shares, fill_price, slippage_cost)
+        logger.info("[%s] BUY %.4f shares @ %.4f  (slippage: %.4f)", strategy, shares, fill_price, slippage_cost)
         return position
 
     except Exception as exc:
         db.rollback()
-        logger.error("open_position failed: %s", exc)
+        logger.error("[%s] open_position failed: %s", strategy, exc)
         return {}
     finally:
         db.close()
@@ -72,9 +80,10 @@ def close_position(
     price: float,
     exit_reason: str,
     params: dict,
+    strategy: str = "ema_crossover",
 ) -> dict:
     """
-    Simulate a SELL fill. Credits proceeds to capital, records PnL.
+    Simulate a SELL fill. Credits proceeds to the strategy's capital, records PnL.
     Returns the closed trade dict.
     """
     slippage_pct  = float(params.get("slippage_pct", 0.05))
@@ -89,32 +98,36 @@ def close_position(
 
     db = SessionLocal()
     try:
-        portfolio = db.get(Portfolio, 1)
+        portfolio = db.query(Portfolio).filter(Portfolio.strategy == strategy).first()
+        if portfolio is None:
+            logger.error("No portfolio row found for strategy '%s'", strategy)
+            return {}
+
         portfolio.capital      += proceeds
         portfolio.realized_pnl += net_pnl
         portfolio.daily_pnl    += net_pnl
         portfolio.last_updated  = datetime.now(timezone.utc).replace(tzinfo=None)
 
         trade = db.get(Trade, position["trade_id"])
-        trade.exit_ts    = datetime.now(timezone.utc).replace(tzinfo=None)
-        trade.exit_price = fill_price
-        trade.gross_pnl  = gross_pnl
-        trade.slippage   = (position.get("slippage", 0) + slippage_cost)
-        trade.net_pnl    = net_pnl
+        trade.exit_ts     = datetime.now(timezone.utc).replace(tzinfo=None)
+        trade.exit_price  = fill_price
+        trade.gross_pnl   = gross_pnl
+        trade.slippage    = position.get("slippage", 0) + slippage_cost
+        trade.net_pnl     = net_pnl
         trade.exit_reason = exit_reason
         trade.status      = "CLOSED"
 
         db.commit()
 
         logger.info(
-            "SELL %.4f shares @ %.4f | gross: %.4f | net: %.4f | reason: %s",
-            shares, fill_price, gross_pnl, net_pnl, exit_reason,
+            "[%s] SELL %.4f shares @ %.4f | gross: %.4f | net: %.4f | reason: %s",
+            strategy, shares, fill_price, gross_pnl, net_pnl, exit_reason,
         )
         return {"net_pnl": net_pnl, "exit_price": fill_price}
 
     except Exception as exc:
         db.rollback()
-        logger.error("close_position failed: %s", exc)
+        logger.error("[%s] close_position failed: %s", strategy, exc)
         return {}
     finally:
         db.close()
