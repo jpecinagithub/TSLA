@@ -4,6 +4,7 @@ import { Search, RefreshCw } from "lucide-react";
 import Badge from "../components/Badge";
 import { api } from "../lib/api";
 import { useStrategy } from "../lib/StrategyContext";
+import { timeET, dateET } from "../lib/time";
 
 interface Signal {
   id: number; ts: string; signal_type: string; price: number;
@@ -118,8 +119,8 @@ export default function DecisionLog() {
               {rows.map(s => (
                 <tr key={s.id} className="tr">
                   <td className="td whitespace-nowrap">
-                    <div className="font-mono text-[12px] text-slate-300">{new Date(s.ts).toLocaleTimeString()}</div>
-                    <div className="text-[11px] text-slate-600">{new Date(s.ts).toLocaleDateString()}</div>
+                    <div className="font-mono text-[12px] text-slate-300">{timeET(s.ts)}</div>
+                    <div className="text-[11px] text-slate-600">{dateET(s.ts)} ET</div>
                   </td>
                   <td className="td"><Badge value={s.signal_type} /></td>
                   <td className="td font-mono font-semibold text-white">${f(s.price)}</td>

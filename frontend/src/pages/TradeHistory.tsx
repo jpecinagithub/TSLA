@@ -3,6 +3,7 @@ import ReactApexChart from "react-apexcharts";
 import Badge from "../components/Badge";
 import { api } from "../lib/api";
 import { useStrategy } from "../lib/StrategyContext";
+import { dateTimeET } from "../lib/time";
 
 interface Trade {
   id: number; entry_ts: string; exit_ts: string|null;
@@ -119,8 +120,8 @@ export default function TradeHistory() {
                 return (
                   <tr key={t.id} className="tr">
                     <td className="td text-slate-600 text-[12px]">#{t.id}</td>
-                    <td className="td font-mono text-[12px] whitespace-nowrap">{new Date(t.entry_ts).toLocaleString()}</td>
-                    <td className="td font-mono text-[12px] text-slate-500 whitespace-nowrap">{t.exit_ts ? new Date(t.exit_ts).toLocaleString() : "—"}</td>
+                    <td className="td font-mono text-[12px] whitespace-nowrap">{dateTimeET(t.entry_ts)}</td>
+                    <td className="td font-mono text-[12px] text-slate-500 whitespace-nowrap">{t.exit_ts ? dateTimeET(t.exit_ts) : "—"}</td>
                     <td className="td font-mono font-semibold">${f(t.entry_price)}</td>
                     <td className="td font-mono">{t.exit_price != null ? `$${f(t.exit_price)}` : "—"}</td>
                     <td className="td font-mono text-[12px]">{f(t.shares, 4)}</td>

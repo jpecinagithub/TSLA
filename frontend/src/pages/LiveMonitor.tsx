@@ -5,6 +5,7 @@ import StatCard    from "../components/StatCard";
 import { useLive } from "../lib/useLive";
 import { api }     from "../lib/api";
 import { useStrategy } from "../lib/StrategyContext";
+import { timeET } from "../lib/time";
 
 interface Portfolio {
   capital: number; initial_capital: number; realized_pnl: number;
@@ -168,7 +169,7 @@ export default function LiveMonitor() {
         <StatCard
           label="TSLA Price"
           value={`$${f(live?.close)}`}
-          sub={live?.ts ? `Last: ${new Date(live.ts).toLocaleTimeString()}` : "Waiting for market…"}
+          sub={live?.ts ? `Last: ${timeET(live.ts)} ET` : "Waiting for market…"}
           icon={<DollarSign size={15} />}
         />
         <StatCard
@@ -335,7 +336,7 @@ export default function LiveMonitor() {
             <h2 className="text-sm font-bold text-white">Agent Decision Status</h2>
             <p className="text-[11px] text-slate-600 mt-0.5">
               Real-time condition breakdown for each strategy
-              {decisions?.ts && ` · ${new Date(decisions.ts).toLocaleTimeString()}`}
+              {decisions?.ts && ` · ${timeET(decisions.ts)} ET`}
             </p>
           </div>
         </div>
