@@ -3,6 +3,7 @@ Risk Manager — absolute authority over all trade execution.
 No trade may bypass this module.
 """
 import logging
+import math
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -44,9 +45,11 @@ def validate_buy(
     risk_amount = capital * max_risk_pct
     shares = risk_amount / (price * stop_loss_pct)
 
-    # Cap so that total cost (price × shares + slippage) never exceeds capital
+    # Cap so that total cost (price × shares + slippage) never exceeds capital.
+    # Use floor at 6 decimal places (not round) to guarantee total_cost <= capital
+    # after floating-point arithmetic inside paper_broker.
     if shares * price * (1 + slippage_pct) > capital:
-        shares = capital / (price * (1 + slippage_pct))
+        shares = math.floor(capital / (price * (1 + slippage_pct)) * 1_000_000) / 1_000_000
 
     if shares <= 0:
         return RiskDecision(False, "computed shares <= 0")
