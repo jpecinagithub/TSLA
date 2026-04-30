@@ -19,6 +19,11 @@ MARKET_OPEN_ET   = os.getenv("MARKET_OPEN_ET", "09:30")
 MARKET_CLOSE_ET  = os.getenv("MARKET_CLOSE_ET", "16:00")
 FLATTEN_BEFORE   = os.getenv("FLATTEN_BEFORE_ET", "15:55")
 
+# Alpaca Paper Trading API
+ALPACA_API_KEY   = os.getenv("ALPACA_API_KEY", "")
+ALPACA_SECRET_KEY = os.getenv("ALPACA_SECRET_KEY", "")
+ALPACA_BASE_URL  = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets")
+
 DATABASE_URL = (
     f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}"
     f"@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}"

@@ -1,92 +1,98 @@
 """
-Fetches 1-minute TSLA bars from yfinance, persists to MySQL.
+Fetches 1-minute TSLA bars from Alpaca Markets API, persists to MySQL.
 
-Rate-limit resilience:
-  - Random User-Agent headers to avoid fingerprinting
-  - Exponential backoff on 429 / empty responses (up to 3 retries)
-  - DB fallback: if yfinance fails entirely, load last 390 bars from DB
-    so agents keep running on cached data rather than skipping the tick.
+Replaces yfinance (which suffered frequent 429 rate-limiting on cloud IPs).
+Alpaca provides a stable, official REST API with generous rate limits.
+
+Fallback chain:
+  1. Alpaca API  → fresh bars
+  2. DB cache    → last 390 bars from MySQL if Alpaca is unavailable
 """
 import logging
-import random
-import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
-import requests
-import yfinance as yf
-from sqlalchemy import text
 from sqlalchemy.dialects.mysql import insert
 
-from config import TICKER
+from config import ALPACA_API_KEY, ALPACA_SECRET_KEY, TICKER
 from db.connection import SessionLocal
 from db.models import Bar
+from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
-# Rotate User-Agents to reduce chance of server-side fingerprinting/blocking
-_USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 "
-    "(KHTML, like Gecko) Version/17.4 Safari/605.1.15",
-    "Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0",
-]
+
+def _get_client():
+    """Create and return an Alpaca StockHistoricalDataClient."""
+    from alpaca.data import StockHistoricalDataClient
+    return StockHistoricalDataClient(
+        api_key=ALPACA_API_KEY,
+        secret_key=ALPACA_SECRET_KEY,
+    )
 
 
-def _make_session() -> requests.Session:
-    """Create a requests session with a random browser User-Agent."""
-    s = requests.Session()
-    s.headers.update({"User-Agent": random.choice(_USER_AGENTS)})
-    return s
-
-
-def fetch_latest_bars(period: str = "1d", retries: int = 3) -> pd.DataFrame:
+def fetch_latest_bars() -> pd.DataFrame:
     """
-    Download 1-min bars from Yahoo Finance.
-    Retries up to `retries` times with exponential backoff on failure.
-    Returns empty DataFrame only if all attempts fail.
+    Download the last ~390 1-minute bars for TSLA from Alpaca.
+    Returns a DataFrame with columns: open, high, low, close, volume.
+    Index is naive UTC datetime.
     """
-    delay = 5  # seconds — doubles each retry
-    for attempt in range(1, retries + 1):
-        try:
-            session = _make_session()
-            ticker  = yf.Ticker(TICKER, session=session)
-            df = ticker.history(period=period, interval="1m", auto_adjust=True)
+    try:
+        from alpaca.data.requests import StockBarsRequest
+        from alpaca.data.timeframe import TimeFrame
 
-            if df.empty:
-                logger.warning("yfinance returned empty DataFrame (attempt %d/%d)", attempt, retries)
-                if attempt < retries:
-                    time.sleep(delay)
-                    delay *= 2
-                continue
+        client = _get_client()
 
-            df.index = pd.to_datetime(df.index)
-            if df.index.tzinfo is not None:
-                df.index = df.index.tz_convert("UTC").tz_localize(None)
-            df.rename(columns={
-                "Open": "open", "High": "high", "Low": "low",
-                "Close": "close", "Volume": "volume"
-            }, inplace=True)
-            df = df[["open", "high", "low", "close", "volume"]]
-            # Drop the last bar if still forming (volume = 0)
-            if len(df) > 1 and df["volume"].iloc[-1] == 0:
-                df = df.iloc[:-1]
-            return df
+        # Request the last 7 hours of 1-minute bars (covers pre/post market + full session)
+        end   = datetime.now(timezone.utc)
+        start = end - timedelta(hours=7)
 
-        except Exception as exc:
-            logger.warning("fetch_latest_bars attempt %d/%d failed: %s", attempt, retries, exc)
-            if attempt < retries:
-                time.sleep(delay)
-                delay *= 2
+        request = StockBarsRequest(
+            symbol_or_symbols=TICKER,
+            timeframe=TimeFrame.Minute,
+            start=start,
+            end=end,
+            feed="iex",          # IEX feed — free tier, no subscription needed
+        )
 
-    logger.error("fetch_latest_bars: all %d attempts failed", retries)
-    return pd.DataFrame()
+        bars = client.get_stock_bars(request)
+        df   = bars.df
+
+        if df.empty:
+            logger.warning("Alpaca returned empty DataFrame")
+            return pd.DataFrame()
+
+        # bars.df has a MultiIndex (symbol, timestamp) — drop the symbol level
+        if isinstance(df.index, pd.MultiIndex):
+            df = df.xs(TICKER, level="symbol")
+
+        # Index is tz-aware UTC — convert to naive UTC
+        if df.index.tzinfo is not None:
+            df.index = df.index.tz_convert("UTC").tz_localize(None)
+
+        # Rename columns to match the rest of the system
+        df = df.rename(columns={
+            "open": "open", "high": "high", "low": "low",
+            "close": "close", "volume": "volume",
+        })
+        df = df[["open", "high", "low", "close", "volume"]]
+
+        # Drop the last bar if it's still forming (volume = 0)
+        if len(df) > 1 and df["volume"].iloc[-1] == 0:
+            df = df.iloc[:-1]
+
+        logger.info("Alpaca: fetched %d bars. Latest close: %.4f",
+                    len(df), df["close"].iloc[-1])
+        return df
+
+    except Exception as exc:
+        logger.error("fetch_latest_bars (Alpaca) failed: %s", exc)
+        return pd.DataFrame()
 
 
 def load_bars_from_db(limit: int = 390) -> pd.DataFrame:
     """
-    Fallback: load the most recent bars from MySQL when yfinance is unavailable.
+    Fallback: load the most recent bars from MySQL when Alpaca is unavailable.
     Returns a DataFrame in the same format as fetch_latest_bars().
     """
     db = SessionLocal()
@@ -95,8 +101,10 @@ def load_bars_from_db(limit: int = 390) -> pd.DataFrame:
             SELECT ts, open, high, low, close, volume
             FROM bars ORDER BY ts DESC LIMIT :limit
         """), {"limit": limit}).fetchall()
+
         if not rows:
             return pd.DataFrame()
+
         rows = list(reversed(rows))
         df = pd.DataFrame([{
             "open":   float(r.open),  "high":  float(r.high),
@@ -104,9 +112,11 @@ def load_bars_from_db(limit: int = 390) -> pd.DataFrame:
             "volume": int(r.volume),
         } for r in rows], index=[r.ts for r in rows])
         df.index.name = None
-        logger.info("DB fallback: loaded %d bars (latest close: %.4f)",
-                    len(df), df["close"].iloc[-1])
+
+        logger.warning("DB fallback: loaded %d bars (latest close: %.4f)",
+                       len(df), df["close"].iloc[-1])
         return df
+
     except Exception as exc:
         logger.error("load_bars_from_db failed: %s", exc)
         return pd.DataFrame()
@@ -145,18 +155,14 @@ def persist_bars(df: pd.DataFrame) -> None:
 
 def collect() -> pd.DataFrame:
     """
-    Full collection cycle: fetch from yfinance → persist to DB → return DataFrame.
-    Falls back to DB data if yfinance is unavailable (rate-limited, network issue, etc.)
+    Full collection cycle: fetch from Alpaca → persist to DB → return DataFrame.
+    Falls back to DB cache if Alpaca is unavailable.
     """
     df = fetch_latest_bars()
 
     if df.empty:
-        # Yahoo Finance unavailable — use cached DB bars so agents keep running
-        logger.warning("yfinance unavailable — using DB fallback for this tick")
-        df = load_bars_from_db()
-        # Don't persist (data is already in DB)
-        return df
+        logger.warning("Alpaca unavailable — using DB fallback for this tick")
+        return load_bars_from_db()
 
     persist_bars(df)
-    logger.info("Collected %d bars. Latest close: %.4f", len(df), df["close"].iloc[-1])
     return df
