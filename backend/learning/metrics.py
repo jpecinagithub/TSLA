@@ -28,21 +28,29 @@ ET = pytz.timezone("America/New_York")
 
 # ── Weekly snapshot computation ───────────────────────────────────────────────
 
-def compute_week(week_start: date) -> dict | None:
+def compute_week(week_start: date, strategy: str | None = None) -> dict | None:
     """
     Compute learning metrics for the 5-day window starting on week_start (Monday).
+    Pass strategy="adaptive" (or any strategy name) to filter by strategy.
     Returns dict ready for INSERT, or None if no trades in that window.
     """
     week_end = week_start + timedelta(days=7)
     db = SessionLocal()
     try:
-        # ── Trades in this week (all strategies combined)
-        rows = db.execute(text("""
+        # ── Trades in this week (optionally filtered by strategy)
+        q_params = {"start": week_start, "end": week_end}
+        strat_clause = ""
+        if strategy:
+            strat_clause = "AND strategy = :strategy"
+            q_params["strategy"] = strategy
+
+        rows = db.execute(text(f"""
             SELECT net_pnl, entry_ts, exit_ts, entry_price, shares
             FROM trades
             WHERE status = 'CLOSED'
               AND entry_ts >= :start AND entry_ts < :end
-        """), {"start": week_start, "end": week_end}).fetchall()
+              {strat_clause}
+        """), q_params).fetchall()
 
         if not rows:
             return None
@@ -80,6 +88,7 @@ def compute_week(week_start: date) -> dict | None:
 
         return {
             "week_start":       week_start,
+            "strategy":         strategy or "all",
             "total_trades":     len(pnls),
             "win_rate":         round(win_rate, 2),
             "profit_factor":    pf,

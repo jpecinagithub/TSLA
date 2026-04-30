@@ -1,11 +1,12 @@
 import { createContext, useContext, useState, ReactNode } from "react";
 
-export type Strategy = "ema_crossover" | "momentum_breakout" | "vwap_momentum";
+export type Strategy = "ema_crossover" | "momentum_breakout" | "vwap_momentum" | "adaptive";
 
 export const STRATEGIES: { value: Strategy; label: string; short: string; color: string }[] = [
   { value: "ema_crossover",     label: "EMA Crossover",     short: "EMA",  color: "text-blue-400"    },
   { value: "momentum_breakout", label: "Momentum Breakout", short: "MOM",  color: "text-amber-400"   },
   { value: "vwap_momentum",     label: "VWAP Momentum",     short: "VWAP", color: "text-violet-400"  },
+  { value: "adaptive",          label: "Adaptive",          short: "ADT",  color: "text-emerald-400" },
 ];
 
 interface StrategyContextValue {

@@ -10,6 +10,7 @@ import pytz
 
 from config import MARKET_OPEN_ET, MARKET_CLOSE_ET
 from agents.trading_agent import TradingAgent
+from agents.adaptive_agent import AdaptiveAgent
 import strategy.ema_crossover    as ema_strategy
 import strategy.momentum_breakout as momentum_strategy
 import strategy.vwap_momentum     as vwap_strategy
@@ -23,10 +24,12 @@ logger = logging.getLogger(__name__)
 ET = pytz.timezone("America/New_York")
 
 # One agent per strategy — instantiated once at startup
+# AdaptiveAgent runs as a 4th portfolio alongside the 3 baselines
 _agents = [
     TradingAgent("ema_crossover",      ema_strategy),
     TradingAgent("momentum_breakout",  momentum_strategy),
     TradingAgent("vwap_momentum",      vwap_strategy),
+    AdaptiveAgent(),
 ]
 
 

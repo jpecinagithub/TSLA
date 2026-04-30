@@ -3,6 +3,9 @@ import ReactApexChart from "react-apexcharts";
 import { api } from "../lib/api";
 import { STRATEGIES } from "../lib/StrategyContext";
 
+// Comparison shows only the 3 individual baselines (adaptive has its own page)
+const BASE_STRATEGIES = STRATEGIES.filter(s => s.value !== "adaptive");
+
 interface PortfolioRow {
   strategy:       string;
   capital:        number;
@@ -45,8 +48,8 @@ export default function Comparison() {
     refetchInterval: 30_000,
   });
 
-  // Fetch performance for all 3 strategies in parallel
-  const perfQueries = STRATEGIES.map(s =>
+  // Fetch performance for the 3 baseline strategies in parallel
+  const perfQueries = BASE_STRATEGIES.map(s =>
     // eslint-disable-next-line react-hooks/rules-of-hooks
     useQuery<PerfRow>({
       queryKey: ["performance", s.value],
@@ -56,7 +59,7 @@ export default function Comparison() {
   );
 
   // Build equity curve series for the overlay chart
-  const equitySeries = STRATEGIES.map((strat, i) => {
+  const equitySeries = BASE_STRATEGIES.map((strat, i) => {
     const perf = perfQueries[i].data;
     const data = (perf?.equity_curve ?? []).map(p => ({
       x: new Date(p.ts).getTime(),
@@ -69,14 +72,14 @@ export default function Comparison() {
 
   // Bar chart: total PnL per strategy
   const pnlBar = {
-    series: [{ name: "Net PnL", data: STRATEGIES.map((_s, i) => perfQueries[i].data?.total_pnl ?? 0) }],
-    labels: STRATEGIES.map(s => s.short),
+    series: [{ name: "Net PnL", data: BASE_STRATEGIES.map((_s, i) => perfQueries[i].data?.total_pnl ?? 0) }],
+    labels: BASE_STRATEGIES.map(s => s.short),
   };
 
   // Win rate bars
   const winBar = {
-    series: [{ name: "Win Rate", data: STRATEGIES.map((_s, i) => perfQueries[i].data?.win_rate ?? 0) }],
-    labels: STRATEGIES.map(s => s.short),
+    series: [{ name: "Win Rate", data: BASE_STRATEGIES.map((_s, i) => perfQueries[i].data?.win_rate ?? 0) }],
+    labels: BASE_STRATEGIES.map(s => s.short),
   };
 
   return (
@@ -86,7 +89,7 @@ export default function Comparison() {
 
       {/* ── Capital & PnL cards ── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {portfolios.map((p) => {
+        {portfolios.filter(p => p.strategy !== "adaptive").map((p) => {
           const meta  = stratMeta(p.strategy);
           const up    = p.realized_pnl >= 0;
           const dayUp = p.daily_pnl >= 0;
@@ -239,7 +242,7 @@ export default function Comparison() {
               </tr>
             </thead>
             <tbody>
-              {STRATEGIES.map((s, i) => {
+              {BASE_STRATEGIES.map((s, i) => {
                 const perf = perfQueries[i].data;
                 const pf   = perf?.profit_factor;
                 const up   = (perf?.total_pnl ?? 0) >= 0;

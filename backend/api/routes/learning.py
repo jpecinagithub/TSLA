@@ -7,8 +7,9 @@ GET /api/learning/regime   → current regime only (live)
 """
 import logging
 from datetime import date, timedelta
+from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 
 from learning.regime  import detect as detect_regime, recommended_strategy
 from learning.metrics import get_all_snapshots, learning_verdict, compute_week
@@ -46,25 +47,29 @@ def get_history():
 
 
 @router.get("/status")
-def get_status():
-    """Full status: regime + verdict + current week preview + history."""
-    # Current regime
+def get_status(strategy: Optional[str] = Query(default=None, description="Filter by strategy (e.g. 'adaptive'). Omit for all combined.")):
+    """Full status: regime + verdict + current week preview + history.
+
+    Pass ?strategy=adaptive to get metrics filtered to the adaptive agent only.
+    """
+    # Current regime (always global — regime is market state, not strategy)
     regime_snap = detect_regime()
 
-    # Historical snapshots
+    # Historical snapshots + verdict (from persisted learning_snapshots table)
     snapshots   = get_all_snapshots()
     verdict     = learning_verdict(snapshots)
 
-    # Current week (live preview — may have 0 trades yet)
+    # Current week (live preview, filtered by strategy if requested)
     today       = date.today()
     week_start  = today - timedelta(days=today.weekday())
-    current_wk  = compute_week(week_start)
+    current_wk  = compute_week(week_start, strategy=strategy)
 
     return {
         "regime":       _format_regime(regime_snap),
         "verdict":      verdict,
         "current_week": _format_snap(current_wk) if current_wk else None,
         "snapshots":    [_format_snap(s) for s in snapshots],
+        "strategy_filter": strategy or "all",
     }
 
 
