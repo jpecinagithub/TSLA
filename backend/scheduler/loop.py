@@ -128,3 +128,13 @@ def run_optimizer_job() -> None:
             logger.info("Optimizer skipped/errored: %s", result.get("reason", "unknown"))
     except Exception as exc:
         logger.error("Optimizer job failed: %s", exc, exc_info=True)
+
+
+def run_weekly_learning_job() -> None:
+    """Called every Monday at 09:00 ET — persists last week's learning snapshot."""
+    logger.info("Running weekly learning metrics job...")
+    try:
+        from learning.metrics import run_weekly_job
+        run_weekly_job()
+    except Exception as exc:
+        logger.error("Weekly learning job failed: %s", exc, exc_info=True)

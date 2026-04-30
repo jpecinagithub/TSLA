@@ -1,7 +1,7 @@
 import { BrowserRouter, NavLink, Route, Routes } from "react-router-dom";
 import {
   Activity, BarChart2, BookOpen, ClipboardList,
-  Settings, Sliders, TrendingUp, Zap, GitCompare, FlaskConical,
+  Settings, Sliders, TrendingUp, Zap, GitCompare, FlaskConical, Brain,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./lib/api";
@@ -17,6 +17,7 @@ import DailyReports  from "./pages/DailyReports";
 import Optimizer     from "./pages/Optimizer";
 import Comparison    from "./pages/Comparison";
 import Backtest      from "./pages/Backtest";
+import Learning      from "./pages/Learning";
 
 interface Portfolio { capital: number; daily_pnl: number; pnl_pct: number; }
 
@@ -30,6 +31,7 @@ const NAV = [
   { to: "/optimizer",   label: "Optimizer",   Icon: Sliders       },
   { to: "/comparison",  label: "Comparison",  Icon: GitCompare    },
   { to: "/backtest",    label: "Backtest",    Icon: FlaskConical  },
+  { to: "/learning",   label: "Learning",    Icon: Brain         },
 ];
 
 function f(n?: number | null, d = 2) { return n != null ? n.toFixed(d) : "—"; }
@@ -118,6 +120,7 @@ function AppInner() {
           <Route path="/optimizer"   element={<Optimizer />} />
           <Route path="/comparison"  element={<Comparison />} />
           <Route path="/backtest"    element={<Backtest />} />
+          <Route path="/learning"   element={<Learning />} />
         </Routes>
       </main>
 

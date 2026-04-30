@@ -11,8 +11,9 @@ from db.connection import check_connection
 from api.routes import trades, signals, portfolio, parameters, performance, bars, reports, optimizer as optimizer_routes
 from api.routes.live_decisions import router as live_decisions_router
 from api.routes.backtest import router as backtest_router
+from api.routes.learning import router as learning_router
 from api.websocket import router as ws_router
-from scheduler.loop import tick, reset_daily_counters, run_daily_analysis_job, run_optimizer_job
+from scheduler.loop import tick, reset_daily_counters, run_daily_analysis_job, run_optimizer_job, run_weekly_learning_job
 
 logging.basicConfig(level=getattr(logging, LOG_LEVEL, logging.INFO))
 logger = logging.getLogger(__name__)
@@ -39,6 +40,9 @@ async def lifespan(app: FastAPI):
     # Parameter optimizer at 16:10 ET (after analysis)
     scheduler.add_job(run_optimizer_job, "cron",
                       day_of_week="mon-fri", hour=16, minute=10)
+    # Weekly learning snapshot — every Monday at 09:00 ET
+    scheduler.add_job(run_weekly_learning_job, "cron",
+                      day_of_week="mon", hour=9, minute=0)
     scheduler.start()
     logger.info("Scheduler started")
 
@@ -67,6 +71,7 @@ app.include_router(reports.router)
 app.include_router(optimizer_routes.router)
 app.include_router(live_decisions_router)
 app.include_router(backtest_router)
+app.include_router(learning_router)
 app.include_router(ws_router)
 
 
