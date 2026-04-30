@@ -4,6 +4,7 @@ export const STRATEGIES = [
     { value: "ema_crossover", label: "EMA Crossover", short: "EMA", color: "text-blue-400" },
     { value: "momentum_breakout", label: "Momentum Breakout", short: "MOM", color: "text-amber-400" },
     { value: "vwap_momentum", label: "VWAP Momentum", short: "VWAP", color: "text-violet-400" },
+    { value: "adaptive", label: "Adaptive", short: "ADT", color: "text-emerald-400" },
 ];
 const StrategyContext = createContext({
     strategy: "ema_crossover",

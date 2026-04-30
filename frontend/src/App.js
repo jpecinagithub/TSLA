@@ -1,6 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { BrowserRouter, NavLink, Route, Routes } from "react-router-dom";
-import { Activity, BarChart2, BookOpen, ClipboardList, Settings, Sliders, TrendingUp, Zap, GitCompare, FlaskConical, } from "lucide-react";
+import { Activity, BarChart2, BookOpen, ClipboardList, Settings, Sliders, TrendingUp, Zap, GitCompare, FlaskConical, Brain, Cpu, } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./lib/api";
 import { useLive } from "./lib/useLive";
@@ -15,6 +15,8 @@ import DailyReports from "./pages/DailyReports";
 import Optimizer from "./pages/Optimizer";
 import Comparison from "./pages/Comparison";
 import Backtest from "./pages/Backtest";
+import Learning from "./pages/Learning";
+import AdaptiveAgent from "./pages/AdaptiveAgent";
 const NAV = [
     { to: "/", label: "Live", Icon: Activity },
     { to: "/decisions", label: "Decisions", Icon: ClipboardList },
@@ -25,6 +27,8 @@ const NAV = [
     { to: "/optimizer", label: "Optimizer", Icon: Sliders },
     { to: "/comparison", label: "Comparison", Icon: GitCompare },
     { to: "/backtest", label: "Backtest", Icon: FlaskConical },
+    { to: "/adaptive", label: "Adaptive", Icon: Cpu },
+    { to: "/learning", label: "Learning", Icon: Brain },
 ];
 function f(n, d = 2) { return n != null ? n.toFixed(d) : "—"; }
 function AppInner() {
@@ -40,7 +44,7 @@ function AppInner() {
                                whitespace-nowrap transition-all cursor-pointer
                                ${isActive
                             ? "text-white bg-blue-600/20 border border-blue-500/20"
-                            : "text-slate-500 hover:text-slate-200 hover:bg-white/5"}`, children: [_jsx(Icon, { size: 13 }), label] })) }, to))) }), _jsx("main", { className: "flex-1 overflow-auto", children: _jsxs(Routes, { children: [_jsx(Route, { path: "/", element: _jsx(LiveMonitor, {}) }), _jsx(Route, { path: "/decisions", element: _jsx(DecisionLog, {}) }), _jsx(Route, { path: "/trades", element: _jsx(TradeHistory, {}) }), _jsx(Route, { path: "/parameters", element: _jsx(Parameters, {}) }), _jsx(Route, { path: "/performance", element: _jsx(Performance, {}) }), _jsx(Route, { path: "/reports", element: _jsx(DailyReports, {}) }), _jsx(Route, { path: "/optimizer", element: _jsx(Optimizer, {}) }), _jsx(Route, { path: "/comparison", element: _jsx(Comparison, {}) }), _jsx(Route, { path: "/backtest", element: _jsx(Backtest, {}) })] }) })] }));
+                            : "text-slate-500 hover:text-slate-200 hover:bg-white/5"}`, children: [_jsx(Icon, { size: 13 }), label] })) }, to))) }), _jsx("main", { className: "flex-1 overflow-auto", children: _jsxs(Routes, { children: [_jsx(Route, { path: "/", element: _jsx(LiveMonitor, {}) }), _jsx(Route, { path: "/decisions", element: _jsx(DecisionLog, {}) }), _jsx(Route, { path: "/trades", element: _jsx(TradeHistory, {}) }), _jsx(Route, { path: "/parameters", element: _jsx(Parameters, {}) }), _jsx(Route, { path: "/performance", element: _jsx(Performance, {}) }), _jsx(Route, { path: "/reports", element: _jsx(DailyReports, {}) }), _jsx(Route, { path: "/optimizer", element: _jsx(Optimizer, {}) }), _jsx(Route, { path: "/comparison", element: _jsx(Comparison, {}) }), _jsx(Route, { path: "/backtest", element: _jsx(Backtest, {}) }), _jsx(Route, { path: "/adaptive", element: _jsx(AdaptiveAgent, {}) }), _jsx(Route, { path: "/learning", element: _jsx(Learning, {}) })] }) })] }));
 }
 export default function App() {
     return (_jsx(BrowserRouter, { basename: "/tsla", children: _jsx(StrategyProvider, { children: _jsx(AppInner, {}) }) }));
