@@ -12,3 +12,6 @@ frontend/.angular/
 *.log
 .DS_Store
 backend/data/historical/*.csv
+
+# Archivos de memoria con credenciales — nunca a git
+memory-*.md
